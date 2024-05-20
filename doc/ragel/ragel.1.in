@@ -103,8 +103,11 @@ Compile the state machines and emit an XML representation of the host data and
 the machines.
 .TP
 .B \-V
-Generate a dot file for Graphviz.
-.TP
+Generate a Graphviz DOT visual representation of the state machine.
+(May not be specified at the same time as -R.)
+.B \-R
+Generate a Mermaid.js visual representation of the state machine.
+(May not be specified at the same time as -V.)
 .B \-p
 Display printable characters on labels.
 .TP
@@ -112,10 +115,10 @@ Display printable characters on labels.
 Inhibit writing of #line directives.
 .TP
 .B \-S <spec>
-FSM specification to output.
+FSM specification to output in the visual representation.
 .TP
 .B \-M <machine>
-Machine definition/instantiation to output.
+Machine definition/instantiation to output in the visual representation.
 .TP
 .B \-C
 The host language is C, C++, Obj-C or Obj-C++. This is the default host language option.

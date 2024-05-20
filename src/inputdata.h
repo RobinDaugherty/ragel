@@ -190,7 +190,7 @@ struct InputData
 		dotGenPd(0),
 		machineSpec(0),
 		machineName(0),
-		generateDot(false),
+		generateVisualization(None),
 		noLineDirectives(false),
 		maxTransitions(LONG_MAX),
 		numSplitPartitions(0),
@@ -269,7 +269,12 @@ struct InputData
 	const char *machineSpec;
 	const char *machineName;
 
-	bool generateDot;
+	enum VisualizationType {
+		GraphvizDot,
+		Mermaid,
+		None,
+	};
+	VisualizationType generateVisualization;
 
 	bool noLineDirectives;
 
@@ -315,7 +320,7 @@ struct InputData
 	void flushRemaining();
 	void makeFirstInputItem();
 	void writeStatement( CodeGenData *cgd, InputLoc &loc, int nargs,
-		std::vector<std::string> &args, bool generateDot, const HostLang *hostLang );
+		std::vector<std::string> &args, VisualizationType generateDot, const HostLang *hostLang );
 	void writeOutput();
 	void makeDefaultFileName();
 	void createOutputStream();

@@ -31,6 +31,7 @@
 #include "pcheck.h"
 #include "nragel.h"
 #include <libfsm/dot.h>
+#include <libfsm/mermaid.h>
 
 #include <colm/colm.h>
 
@@ -221,7 +222,7 @@ void InputData::verifyWritesHaveData()
 }
 
 void InputData::writeStatement( CodeGenData *cgd, InputLoc &loc, int nargs,
-		std::vector<std::string> &args, bool generateDot, const HostLang *hostLang )
+		std::vector<std::string> &args, VisualizationType generateVisualization, const HostLang *hostLang )
 {
 	/* Start write generation on a fresh line. */
 	*outStream << '\n';
@@ -315,7 +316,7 @@ void InputData::writeOutput( InputItem *ii )
 		case InputItem::Write: {
 			CodeGenData *cgd = ii->pd->cgd;
 			writeStatement( cgd, ii->loc, ii->writeArgs.size(),
-					ii->writeArgs, generateDot, hostLang );
+					ii->writeArgs, generateVisualization, hostLang );
 			break;
 		}
 		case InputItem::HostData: {
@@ -355,9 +356,17 @@ void InputData::closeOutput()
 
 void InputData::writeDot( ostream &out )
 {
+	if ( generateVisualization == None )
+		return;
+
 	ParseData *pd = dotGenPd;
-	GraphvizDotGen dotGen( this, pd->fsmCtx, pd->sectionGraph, pd->sectionName, pd->machineId, out );
-	dotGen.write();
+	if ( generateVisualization == GraphvizDot ) {
+		GraphvizDotGen dotGen( this, pd->fsmCtx, pd->sectionGraph, pd->sectionName, pd->machineId, out );
+		dotGen.write();
+	} else if ( generateVisualization == Mermaid ) {
+		MermaidGen dotGen( this, pd->fsmCtx, pd->sectionGraph, pd->sectionName, pd->machineId, out );
+		dotGen.write();
+	}
 }
 
 void InputData::processDot()
@@ -384,7 +393,7 @@ void InputData::processDot()
 
 bool InputData::checkLastRef( InputItem *ii )
 {
-	if ( generateDot )
+	if ( generateVisualization != None )
 		return true;
 	
 	if ( errorCount > 0 )
@@ -548,8 +557,8 @@ void InputData::processKelbt()
 	 * ragel section. In the second pass we parse, compile, and emit as far
 	 * forward as possible when we encounter the last reference to a machine.
 	 * */
-	
-	if ( generateDot ) {
+
+	if ( generateVisualization != None ) {
 		parseKelbt();
 		terminateAllParsers();
 		processDot();
@@ -607,7 +616,7 @@ bool InputData::parseReduce()
 
 bool InputData::processReduce()
 {
-	if ( generateDot ) {
+	if ( generateVisualization != None ) {
 		parseReduce();
 		processDot();
 		return true;
@@ -670,11 +679,12 @@ void InputData::usage()
 "   -l                   Minimize after most operations (default)\n"
 "   -e                   Minimize after every operation\n"
 "visualization:\n"
-"   -V                   Generate a dot file for Graphviz\n"
+"   -V                   Generate a visualization in Graphviz DOT language\n"
+"   -R                   Generate a visualization in mermaidjs language\n"
 "   -p                   Display printable characters on labels\n"
-"   -S <spec>            FSM specification to output (for graphviz output)\n"
+"   -S <spec>            FSM specification to output (for visualization output)\n"
 "   -M <machine>         Machine definition/instantiation to output (for\n"
-"                        graphviz output)\n"
+"                        visualization output)\n"
 "host language binaries:\n"
 "   ragel, ragel-c       C, C++, Obj-C or Obj-C++\n"
 "                        All code styles supported.\n"
@@ -908,7 +918,7 @@ bool ParamCheck::check()
 
 void InputData::parseArgs( int argc, const char **argv )
 {
-	ParamCheck pc( "o:dnmleabjkS:M:I:vHh?-:sT:F:W:G:LpV", argc, argv );
+	ParamCheck pc( "o:dnmleabjkS:M:I:vHh?-:sT:F:W:G:LpVR", argc, argv );
 
 	/* Decide if we were invoked using a path variable, or with an explicit path. */
 	const char *lastSlash = strrchr( argv[0], '/' );
@@ -928,7 +938,15 @@ void InputData::parseArgs( int argc, const char **argv )
 		case ParamCheck::match:
 			switch ( pc.parameter ) {
 			case 'V':
-				generateDot = true;
+				if ( generateVisualization == Mermaid )
+					error() << "may not specify both -V and -R" << endp;
+				generateVisualization = GraphvizDot;
+				break;
+
+			case 'R':
+				if ( generateVisualization == GraphvizDot )
+					error() << "may not specify both -V and -R" << endp;
+				generateVisualization = Mermaid;
 				break;
 
 			/* Output. */
@@ -1344,7 +1362,7 @@ int InputData::main( int argc, const char **argv )
 	try {
 		parseArgs( argc, argv );
 		checkArgs();
-		if ( !generateDot )
+		if ( generateVisualization == None )
 			makeDefaultFileName();
 
 		if ( !process() )
